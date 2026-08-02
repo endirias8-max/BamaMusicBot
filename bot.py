@@ -96,7 +96,20 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("This bot was created by Bama.")
+    about_text = (
+        "🎶 **Welcome to Bama Music Bot!** 🎶\n\n"
+        "Bama Music Bot is your ultimate spiritual music companion, designed to bring you "
+        "uplifting songs, lyrics, and audio content directly inside Telegram.\n\n"
+        "✨ **Key Features:**\n"
+        "• 🎵 Access a rich collection of spiritual songs & lyrics\n"
+        "• 🎧 Listen to and download high-quality audio files\n"
+        "• 🔍 Easy and fast song search by title\n"
+        "• 👥 Community-driven music sharing\n\n"
+        "👨‍💻 **Developed & Maintained by:** Bama\n"
+        "🚀 **Version:** 1.0.0\n\n"
+        "Thank you for using Bama Music Bot! Stay blessed and inspired. 🙏"
+    )
+    await update.message.reply_text(about_text)
 
 async def songs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     songs_database = load_songs()
