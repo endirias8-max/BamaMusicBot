@@ -87,12 +87,11 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "📌 **የቦቱ ትእዛዛት (Commands):**\n\n"
         "/start - ቦቱን ለመጀመር\n"
-        "/songs - የመዝሙሮች ዝርዝር ለማየት\n"
+        "/songs - ሁሉንም የመዝሙሮች ዝርዝር ለማየት\n"
         "/myinvites - የጋበዝካቸውን ሰዎች ብዛት ለማወቅ\n"
         "/about - ስለ ቦቱ መረጃ\n"
         "/help - የእርዳታ መረጃ\n\n"
-        "➕ **አዲስ መዝሙር ለመጨመር፡**\n"
-        "`/add ርዕስ | ግጥም | Audio_File_ID`"
+        "💡 *የመዝሙር ዝርዝር ለማየት `songs` ብለህ መጻፍ ትችላለህ።*"
     )
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -111,14 +110,15 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(about_text)
 
+# ሁሉንም የመዝሙሮች ዝርዝር በአንዴ የሚያመጣ Function
 async def songs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     songs_database = load_songs()
     if not songs_database:
         text = "❌ ምንም የተመዘገበ መዝሙር አልተገኘም።"
     else:
-        text = "📜 **የመዝሙሮች ዝርዝር፡**\n\n"
-        for song in songs_database:
-            text += "• " + song + "\n"
+        text = "📜 **የሁሉም መዝሙሮች ዝርዝር፡**\n\n"
+        for index, song in enumerate(songs_database, 1):
+            text += f"{index}. {song}\n"
 
     await update.message.reply_text(text)
 
@@ -175,7 +175,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
 
-    if text == "🎵 Songs":
+    # ተጠቃሚው "songs" ወይም "🎵 Songs" ብሎ ሲጽፍ ሁሉንም አውቶማቲክ ያመጣል
+    if text.lower() in ["songs", "🎵 songs"]:
         await songs(update, context)
         return
     elif text == "ℹ️ About":
@@ -200,7 +201,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
 
     if not found:
-        await update.message.reply_text("❌ መዝሙሩ አልተገኘም።")
+        await update.message.reply_text("❌ መዝሙሩ አልተገኘም። እባክህ የመዝሙሩን ስም በትክክል አስገባ ወይም 'songs' ብለህ ጻፍ።")
 
 # ቻናል ላይ Forward የተደረገ Audio ሲመጣ በዝምታ መመዝገቢያ
 async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -211,12 +212,9 @@ async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_T
         
         save_song(title, lyrics, file_id)
 
-# ኖርማል Audio ሲላክ File ID መስጫ
-async def get_audio_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file_id = update.message.audio.file_id
-    await update.message.reply_text(
-        f"🎵 Audio File ID:\n\n`{file_id}`"
-    )
+# ኖርማል Audio ሲላክ - ምንም አይነት Audio Code/ID አይልክም
+async def handle_direct_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Audioው በተሳካ ሁኔታ ደርሷል!")
 
 # -------------------------------------------------------------
 # 6. ቦቱን ማስነሳት
@@ -233,10 +231,10 @@ app.add_handler(CommandHandler("add", add_song_command))
 
 # Handlers
 app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_invites))
-# Forward የተደረገ Audio ከቻናል ሲመጣ
+# Forward የተደረገ Audio ከቻናል ሲመጣ በዝምታ ይመዝግባል
 app.add_handler(MessageHandler(filters.AUDIO & filters.FORWARDED, handle_forwarded_audio))
-# Direct የተላከ Audio ሲመጣ
-app.add_handler(MessageHandler(filters.AUDIO & ~filters.FORWARDED, get_audio_file_id))
+# Direct የተላከ Audio ሲመጣ Code ሳይሆን አጭር ማረጋገጫ ብቻ ይሰጣል
+app.add_handler(MessageHandler(filters.AUDIO & ~filters.FORWARDED, handle_direct_audio))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 print("Bot is running...")
