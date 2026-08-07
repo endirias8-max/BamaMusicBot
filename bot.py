@@ -41,7 +41,10 @@ def load_songs():
     file_path = "songs.json"
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as file:
-            return json.load(file)
+            try:
+                return json.load(file)
+            except Exception:
+                return {}
     return {}
 
 def save_song(title, lyrics, audio_id=""):
