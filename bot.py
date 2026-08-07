@@ -2,11 +2,12 @@ import json
 import os
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     ContextTypes,
     filters
 )
@@ -34,7 +35,6 @@ Thread(target=run_health_check_server, daemon=True).start()
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
 REQUIRED_INVITES = 3  # ተጠቃሚው አገልግሎት ለማግኘት መጋበዝ ያለበት አነስተኛ ሰው ብዛት
 
-# የሰው መጋበዣ ዳታ መያዣ
 user_invites = {}
 
 def load_songs():
@@ -94,7 +94,7 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/myinvites - የጋበዝካቸውን ሰዎች ብዛት ለማወቅ\n"
         "/about - ስለ ቦቱ መረጃ\n"
         "/help - የእርዳታ መረጃ\n\n"
-        "💡 *የመዝሙር ዝርዝር ለማየት `songs` ብለህ መጻፍ ትችላለህ።*"
+        "💡 *የመዝሙር ዝርዝር ለማየት 'Songs' የሚለውን ቁልፍ ይጫኑ።*"
     )
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -113,17 +113,47 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(about_text)
 
-# ሁሉንም የመዝሙሮች ዝርዝር በአንዴ የሚያመጣ Function
+# መዝሙሮችን በሚነኩ ቁልፎች (Clickable Buttons) ማቅረቢያ
 async def songs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     songs_database = load_songs()
     if not songs_database:
-        text = "❌ ምንም የተመዘገበ መዝሙር አልተገኘም።"
-    else:
-        text = "📜 **የሁሉም መዝሙሮች ዝርዝር፡**\n\n"
-        for index, song in enumerate(songs_database, 1):
-            text += f"{index}. {song}\n"
+        await update.message.reply_text("❌ ምንም የተመዘገበ መዝሙር አልተገኘም።")
+        return
 
-    await update.message.reply_text(text)
+    keyboard = []
+    for index, title in enumerate(songs_database.keys()):
+        # እያንዳንዱን መዝሙር የሚነካ ቁልፍ ማድረግ
+        keyboard.append([InlineKeyboardButton(f"🎵 {title}", callback_data=f"song_{index}")])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "📜 **የመዝሙሮች ዝርዝር (ለመስማት የሚፈልጉትን መዝሙር ይጫኑ)፡**",
+        reply_markup=reply_markup
+    )
+
+# ተጠቃሚው የሚነካውን ቁልፍ ሲጫን የሚሰራ Function
+async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    songs_database = load_songs()
+    song_titles = list(songs_database.keys())
+
+    if query.data.startswith("song_"):
+        index = int(query.data.split("_")[1])
+        if index < len(song_titles):
+            title = song_titles[index]
+            data = songs_database[title]
+
+            # ግጥሙን ይልካል
+            await query.message.reply_text(f"📖 **{title}**\n\n{data.get('lyrics', '')}")
+
+            # Audio ካለው ድምፁን ይልካል
+            if data.get("audio", "") != "":
+                await query.message.reply_audio(
+                    audio=data["audio"],
+                    caption=title
+                )
 
 async def my_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -178,7 +208,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
 
-    # ተጠቃሚው "songs" ወይም "🎵 Songs" ብሎ ሲጽፍ ሁሉንም አውቶማቲክ ያመጣል
     if text.lower() in ["songs", "🎵 songs"]:
         await songs(update, context)
         return
@@ -204,7 +233,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
 
     if not found:
-        await update.message.reply_text("❌ መዝሙሩ አልተገኘም። እባክህ የመዝሙሩን ስም በትክክል አስገባ ወይም 'songs' ብለህ ጻፍ።")
+        await update.message.reply_text("❌ መዝሙሩ አልተገኘም። እባክህ 'Songs' የሚለውን በመጫን ከዝርዝሩ ውስጥ ምረጥ።")
 
 # ቻናል ላይ Forward የተደረገ Audio ሲመጣ በዝምታ መመዝገቢያ
 async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -215,7 +244,7 @@ async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_T
         
         save_song(title, lyrics, file_id)
 
-# ኖርማል Audio ሲላክ - ምንም አይነት Audio Code/ID አይልክም
+# ኖርማል Audio ሲላክ
 async def handle_direct_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Audioው በተሳካ ሁኔታ ደርሷል!")
 
@@ -233,10 +262,9 @@ app.add_handler(CommandHandler("myinvites", my_invites))
 app.add_handler(CommandHandler("add", add_song_command))
 
 # Handlers
+app.add_handler(CallbackQueryHandler(handle_button_click))
 app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_invites))
-# Forward የተደረገ Audio ከቻናል ሲመጣ በዝምታ ይመዝግባል
 app.add_handler(MessageHandler(filters.AUDIO & filters.FORWARDED, handle_forwarded_audio))
-# Direct የተላከ Audio ሲመጣ Code ሳይሆን አጭር ማረጋገጫ ብቻ ይሰጣል
 app.add_handler(MessageHandler(filters.AUDIO & ~filters.FORWARDED, handle_direct_audio))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
