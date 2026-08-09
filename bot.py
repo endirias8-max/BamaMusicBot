@@ -2,12 +2,11 @@ import json
 import os
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
-    CallbackQueryHandler,
     ContextTypes,
     filters
 )
@@ -19,7 +18,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"BamaBot is alive and running!")
+        self.wfile.write(b"BamaMusicBot is alive and running!")
 
 def run_health_check_server():
     port = int(os.environ.get("PORT", 10000))
@@ -30,13 +29,12 @@ def run_health_check_server():
 Thread(target=run_health_check_server, daemon=True).start()
 
 # -------------------------------------------------------------
-# 2. የቦት ቅንብሮች፣ Admin ID እና Data Storage
+# 2. የቦት ቅንብሮች እና Data Storage
 # -------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
-# ⚠️ ADMIN_CHAT_ID ቦታ ላይ የራስህን የቴሌግራም numeric ID አስገባ (ምሳሌ: 123456789)
-ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID", "YOUR_TELEGRAM_ADMIN_ID") 
-
 REQUIRED_INVITES = 3  # ተጠቃሚው አገልግሎት ለማግኘት መጋበዝ ያለበት አነስተኛ ሰው ብዛት
+
+# የሰው መጋበዣ ዳታ መያዣ
 user_invites = {}
 
 def load_songs():
@@ -59,51 +57,7 @@ def save_song(title, lyrics, audio_id=""):
         json.dump(songs, file, ensure_ascii=False, indent=4)
 
 # -------------------------------------------------------------
-# 3. WebApp (Mini App) ትዕዛዝ መቀበያ ማስተናገጃ
-# -------------------------------------------------------------
-async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        raw_data = update.message.web_app_data.data
-        order_info = json.loads(raw_data)
-
-        user = update.effective_user
-        product_name = order_info.get("product", "ያልተጠቀሰ")
-        price = order_info.get("price", "0")
-        cust_name = order_info.get("customer_name", user.full_name)
-        phone = order_info.get("phone", "ያልተሰጠ")
-        address = order_info.get("address", "ያልተሰጠ")
-        payment = order_info.get("payment_method", "ያልተጠቀሰ")
-
-        # 1. ለደንበኛው የሚላክ የማረጋገጫ መልእክት
-        customer_message = (
-            f"✅ **ትዕዛዝዎ በተሳካ ሁኔታ ደርሶናል {cust_name}!**\n\n"
-            f"📦 **የታዘዘው ዕቃ:** {product_name}\n"
-            f"💰 **ዋጋ:** {price}\n"
-            f"📍 **የማስረከቢያ አድራሻ:** {address}\n"
-            f"💳 **የክፍያ መንገድ:** {payment}\n\n"
-            f"📞 በቅርብ ጊዜ በስልክ ቁጥርዎ (**{phone}**) ደውለን ትዕዛዝዎን እናስረክባለን። እናመሰግናለን!"
-        )
-        await update.message.reply_text(customer_message, parse_mode="Markdown")
-
-        # 2. ለአድሚን የሚላክ የትዕዛዝ ማሳወቂያ
-        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != "YOUR_TELEGRAM_ADMIN_ID":
-            admin_message = (
-                f"🚨 **አዲስ የ Bama Furniture ትዕዛዝ ደርሷል!**\n\n"
-                f"👤 **የደንበኛ ስም:** {cust_name} (@{user.username if user.username else 'የለውም'})\n"
-                f"📞 **ስልክ ቁጥር:** `{phone}`\n"
-                f"📍 **አድራሻ:** {address}\n"
-                f"📦 **የታዘዘው ዕቃ:** {product_name}\n"
-                f"💰 **ዋጋ:** {price}\n"
-                f"💳 **የክፍያ መንገድ:** {payment}"
-            )
-            await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_message, parse_mode="Markdown")
-
-    except Exception as e:
-        print(f"Error handling WebApp data: {e}")
-        await update.message.reply_text("❌ ትዕዛዝዎን በማስተናገድ ላይ ስህተት ተፈጥሯል። እባክዎ ድጋሚ ይሞክሩ።")
-
-# -------------------------------------------------------------
-# 4. አዲስ ሰው ሲጨመር መቆጣጠሪያ (Track Invites)
+# 3. አዲስ ሰው ሲጨመር መቆጣጠሪያ (Track Invites)
 # -------------------------------------------------------------
 async def track_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
     inviter = update.message.from_user.id
@@ -119,7 +73,7 @@ async def track_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
 # -------------------------------------------------------------
-# 5. Command Handlers
+# 4. Command Handlers
 # -------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
@@ -128,7 +82,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text(
-        "👋 Welcome to Bama Music & Furniture Bot!",
+        "👋 Welcome to Bama Music Bot",
         reply_markup=reply_markup
     )
 
@@ -140,55 +94,36 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/myinvites - የጋበዝካቸውን ሰዎች ብዛት ለማወቅ\n"
         "/about - ስለ ቦቱ መረጃ\n"
         "/help - የእርዳታ መረጃ\n\n"
-        "💡 *የመዝሙር ዝርዝር ለማየት 'Songs' የሚለውን ቁልፍ ይጫኑ።*"
+        "💡 *የመዝሙር ዝርዝር ለማየት `songs` ብለህ መጻፍ ትችላለህ።*"
     )
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     about_text = (
-        "🎶 **Welcome to Bama Bot!** 🎶\n\n"
-        "Bama Bot provides spiritual music, songs, lyrics, and exclusive Bama Furniture services directly inside Telegram.\n\n"
+        "🎶 **Welcome to Bama Music Bot!** 🎶\n\n"
+        "Bama Music Bot is your ultimate spiritual music companion, designed to bring you "
+        "uplifting songs, lyrics, and audio content directly inside Telegram.\n\n"
+        "✨ **Key Features:**\n"
+        "• 🎵 Access a rich collection of spiritual songs & lyrics\n"
+        "• 🎧 Listen to and download high-quality audio files\n"
+        "• 🔍 Easy and fast song search by title\n"
+        "• 👥 Community-driven music sharing\n\n"
         "👨‍💻 **Developed & Maintained by:** Bama\n"
-        "🚀 **Version:** 1.1.0\n\n"
-        "Thank you for using Bama Bot! Stay blessed and inspired. 🙏"
+        "🚀 **Version:** 1.0.0\n\n"
+        "Thank you for using Bama Music Bot! Stay blessed and inspired. 🙏"
     )
     await update.message.reply_text(about_text)
 
+# ሁሉንም የመዝሙሮች ዝርዝር በአንዴ የሚያመጣ Function
 async def songs(update: Update, context: ContextTypes.DEFAULT_TYPE):
     songs_database = load_songs()
     if not songs_database:
-        await update.message.reply_text("❌ ምንም የተመዘገበ መዝሙር አልተገኘም።")
-        return
+        text = "❌ ምንም የተመዘገበ መዝሙር አልተገኘም።"
+    else:
+        text = "📜 **የሁሉም መዝሙሮች ዝርዝር፡**\n\n"
+        for index, song in enumerate(songs_database, 1):
+            text += f"{index}. {song}\n"
 
-    keyboard = []
-    for index, title in enumerate(songs_database.keys()):
-        keyboard.append([InlineKeyboardButton(f"🎵 {title}", callback_data=f"song_{index}")])
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "📜 **የመዝሙሮች ዝርዝር (ለመስማት የሚፈልጉትን መዝሙር ይጫኑ)፡**",
-        reply_markup=reply_markup
-    )
-
-async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    songs_database = load_songs()
-    song_titles = list(songs_database.keys())
-
-    if query.data.startswith("song_"):
-        index = int(query.data.split("_")[1])
-        if index < len(song_titles):
-            title = song_titles[index]
-            data = songs_database[title]
-
-            await query.message.reply_text(f"📖 **{title}**\n\n{data.get('lyrics', '')}")
-
-            if data.get("audio", "") != "":
-                await query.message.reply_audio(
-                    audio=data["audio"],
-                    caption=title
-                )
+    await update.message.reply_text(text)
 
 async def my_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -224,12 +159,13 @@ async def add_song_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ ስህተት ተፈጥሯል! እባክህ ፎርማቱን አስተካክለህ ድጋሚ ሞክር።")
 
 # -------------------------------------------------------------
-# 6. Message & Audio Handlers
+# 5. Message & Audio Handlers
 # -------------------------------------------------------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_type = update.effective_chat.type
 
+    # ግሩፕ ውስጥ ከሆነ የተጋበዘውን ብዛት ያረጋግጣል
     if chat_type in ["group", "supergroup"]:
         invites_count = user_invites.get(user_id, 0)
         if invites_count < REQUIRED_INVITES:
@@ -242,6 +178,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.strip()
 
+    # ተጠቃሚው "songs" ወይም "🎵 Songs" ብሎ ሲጽፍ ሁሉንም አውቶማቲክ ያመጣል
     if text.lower() in ["songs", "🎵 songs"]:
         await songs(update, context)
         return
@@ -267,8 +204,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             break
 
     if not found:
-        await update.message.reply_text("❌ መዝሙሩ አልተገኘም። እባክህ 'Songs' የሚለውን በመጫን ከዝርዝሩ ውስጥ ምረጥ።")
+        await update.message.reply_text("❌ መዝሙሩ አልተገኘም። እባክህ የመዝሙሩን ስም በትክክል አስገባ ወይም 'songs' ብለህ ጻፍ።")
 
+# ቻናል ላይ Forward የተደረገ Audio ሲመጣ በዝምታ መመዝገቢያ
 async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.audio:
         file_id = update.message.audio.file_id
@@ -277,16 +215,14 @@ async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_T
         
         save_song(title, lyrics, file_id)
 
+# ኖርማል Audio ሲላክ - ምንም አይነት Audio Code/ID አይልክም
 async def handle_direct_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Audioው በተሳካ ሁኔታ ደርሷል!")
 
 # -------------------------------------------------------------
-# 7. ቦቱን ማስነሳት
+# 6. ቦቱን ማስነሳት
 # -------------------------------------------------------------
 app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-# WebApp Data Handler (ከ Mini App ለሚመጡ ትዕዛዞች)
-app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
 
 # Commands
 app.add_handler(CommandHandler("start", start))
@@ -297,9 +233,10 @@ app.add_handler(CommandHandler("myinvites", my_invites))
 app.add_handler(CommandHandler("add", add_song_command))
 
 # Handlers
-app.add_handler(CallbackQueryHandler(handle_button_click))
 app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_invites))
+# Forward የተደረገ Audio ከቻናል ሲመጣ በዝምታ ይመዝግባል
 app.add_handler(MessageHandler(filters.AUDIO & filters.FORWARDED, handle_forwarded_audio))
+# Direct የተላከ Audio ሲመጣ Code ሳይሆን አጭር ማረጋገጫ ብቻ ይሰጣል
 app.add_handler(MessageHandler(filters.AUDIO & ~filters.FORWARDED, handle_direct_audio))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
