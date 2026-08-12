@@ -34,7 +34,7 @@ Thread(target=run_health_check_server, daemon=True).start()
 # -------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
 # ⚠️ ADMIN_CHAT_ID ቦታ ላይ የራስህን የቴሌግራም numeric ID አስገባ (ምሳሌ: 123456789)
-ADMIN_CHAT_ID = os.environ.get("@bamafurnitur", "1001902444321") 
+ADMIN_CHAT_ID = os.environ.get("@melody_time_bot","1001902444321") 
 
 REQUIRED_INVITES = 3  # ተጠቃሚው አገልግሎት ለማግኘት መጋበዝ ያለበት አነስተኛ ሰው ብዛት
 user_invites = {}
