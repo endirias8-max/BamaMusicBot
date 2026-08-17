@@ -13,7 +13,7 @@ from telegram.ext import (
 )
 
 # -------------------------------------------------------------
-# 1. Render Port Error እንዳያሳይ የሚረዳ Web Server (Health Check)
+# 1. Render Port Health Check Web Server
 # -------------------------------------------------------------
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -30,13 +30,14 @@ def run_health_check_server():
 Thread(target=run_health_check_server, daemon=True).start()
 
 # -------------------------------------------------------------
-# 2. የቦት ቅንብሮች፣ Admin ID እና Data Storage
+# 2. የቦት ቅንብሮች እና Data Storage
 # -------------------------------------------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
-# ⚠️ ADMIN_CHAT_ID ቦታ ላይ የራስህን የቴሌግራም numeric ID አስገባ (ምሳሌ: 123456789)
-ADMIN_CHAT_ID = os.environ.get("@melody_time_bot","1001902444321") 
 
-REQUIRED_INVITES = 3  # ተጠቃሚው አገልግሎት ለማግኘት መጋበዝ ያለበት አነስተኛ ሰው ብዛት
+# ⚠️ ማስታወሻ: የራስህን Numeric ID አስገባ (ምሳሌ: 123456789)
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "1001902444321")) 
+
+REQUIRED_INVITES = 3  
 user_invites = {}
 
 def load_songs():
@@ -86,7 +87,7 @@ async def handle_webapp_data(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(customer_message, parse_mode="Markdown")
 
         # 2. ለአድሚን የሚላክ የትዕዛዝ ማሳወቂያ
-        if ADMIN_CHAT_ID and ADMIN_CHAT_ID != "YOUR_TELEGRAM_ADMIN_ID":
+        if ADMIN_CHAT_ID:
             admin_message = (
                 f"🚨 **አዲስ የ Bama Furniture ትዕዛዝ ደርሷል!**\n\n"
                 f"👤 **የደንበኛ ስም:** {cust_name} (@{user.username if user.username else 'የለውም'})\n"
@@ -285,18 +286,14 @@ async def handle_direct_audio(update: Update, context: ContextTypes.DEFAULT_TYPE
 # -------------------------------------------------------------
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# WebApp Data Handler (ከ Mini App ለሚመጡ ትዕዛዞች)
+# Handlers
 app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_webapp_data))
-
-# Commands
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("help", help))
 app.add_handler(CommandHandler("about", about))
 app.add_handler(CommandHandler("songs", songs))
 app.add_handler(CommandHandler("myinvites", my_invites))
 app.add_handler(CommandHandler("add", add_song_command))
-
-# Handlers
 app.add_handler(CallbackQueryHandler(handle_button_click))
 app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, track_invites))
 app.add_handler(MessageHandler(filters.AUDIO & filters.FORWARDED, handle_forwarded_audio))
