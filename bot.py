@@ -32,7 +32,7 @@ Thread(target=run_health_check_server, daemon=True).start()
 # -------------------------------------------------------------
 # 2. የቦት ቅንብሮች እና Data Storage
 # -------------------------------------------------------------
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAESl2HTlOAxWFqmODIIjcWu9c2fp74cERQ")
 
 # ⚠️ ማስታወሻ: የራስህን Numeric ID አስገባ (ምሳሌ: 123456789)
 ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "1001902444321")) 
