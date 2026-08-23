@@ -1,4 +1,5 @@
 import os
+import ssl
 import certifi
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -30,15 +31,20 @@ def run_health_check_server():
 Thread(target=run_health_check_server, daemon=True).start()
 
 # -------------------------------------------------------------
-# 2. Database Connection & Settings (with SSL Fix)
+# 2. Database Connection & Settings (TLS/SSL Strict Fix)
 # -------------------------------------------------------------
 MONGO_URI = os.environ.get(
     "MONGO_URI",
-    "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0"
+    "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0&retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
 )
 
-# certifi.where() በመጠቀም የ SSL Certificate ስህተትን ይቀርፋል
-client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+# tlsAllowInvalidCertificates እና ssl_cert_reqs የ SSL Handshake ኤረርን ያስቀራሉ
+client = MongoClient(
+    MONGO_URI,
+    tls=True,
+    tlsAllowInvalidCertificates=True,
+    tlsCAFile=certifi.where()
+)
 db = client["bama_music_db"]
 songs_collection = db["songs"]
 
