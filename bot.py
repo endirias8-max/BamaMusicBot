@@ -37,7 +37,7 @@ client = MongoClient(MONGO_URI)
 db = client["bama_music_db"]
 songs_collection = db["songs"]
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAH2xcrIWyG75ToXf8mYvhG9TCu3KX57NCo")
 REQUIRED_INVITES = 3
 user_invites = {}
 
