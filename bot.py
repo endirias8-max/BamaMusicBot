@@ -15,7 +15,7 @@ from telegram.ext import (
 from pymongo import MongoClient
 
 # -------------------------------------------------------------
-# 1. Health Check Server (ለ Render)
+# 1. Health Check Server (ለ Render deployment)
 # -------------------------------------------------------------
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -31,14 +31,15 @@ def run_health_check_server():
 Thread(target=run_health_check_server, daemon=True).start()
 
 # -------------------------------------------------------------
-# 2. Database Connection & Settings (TLS/SSL Strict Fix)
+# 2. Database Connection & Corrected Credentials
 # -------------------------------------------------------------
+# በAtlas ከተቀየረው BamaPass2026 ፓስወርድ እና ትክክለኛው Username (endirias8_db_user) ጋር የተዘጋጀ
 MONGO_URI = os.environ.get(
     "MONGO_URI",
-    "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0&retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
+    "mongodb+srv://endirias8_db_user:BamaPass2026@cluster0.i4n9gvo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 )
 
-# tlsAllowInvalidCertificates እና ssl_cert_reqs የ SSL Handshake ኤረርን ያስቀራሉ
+# የ SSL/TLS እና Authentication ስህተቶችን ለመከላከል የተደረገ ማስተካከያ
 client = MongoClient(
     MONGO_URI,
     tls=True,
@@ -197,7 +198,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await help(update, context)
         return
 
-    # በፍጥነት መዝሙር በስም መፈለጊያ (Search)
     try:
         results = list(songs_collection.find({"title_lower": {"$regex": text.lower()}}).limit(10))
 
