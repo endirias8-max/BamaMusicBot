@@ -31,16 +31,20 @@ Thread(target=run_health_check_server, daemon=True).start()
 # -------------------------------------------------------------
 # 2. Database Connection & Settings
 # -------------------------------------------------------------
-MONGO_URI = "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0"
+MONGO_URI = os.environ.get(
+    "MONGO_URI",
+    "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0"
+)
+
 client = MongoClient(MONGO_URI)
 db = client["bama_music_db"]
 songs_collection = db["songs"]
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAH2xcrIWyG75ToXf8mYvhG9TCu3KX57NCo")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "7278213937:AAEkAf3PEoyeLEgvIJPB1ZPjRXJeRCHDbMM")
 REQUIRED_INVITES = 3
 user_invites = {}
 
-PAGE_SIZE = 10  # በአንድ ገፅ የሚታዩ መዝሙሮች ብዛት
+PAGE_SIZE = 10
 
 def save_song_to_db(title, lyrics, audio_id=""):
     songs_collection.update_one(
@@ -61,7 +65,6 @@ def get_songs_keyboard(page=0):
     for song in songs:
         keyboard.append([InlineKeyboardButton(f"🎵 {song['title']}", callback_data=f"song_{str(song['_id'])}")])
 
-    # የገፅ መቀየሪያ ቁልፎች
     nav_buttons = []
     if page > 0:
         nav_buttons.append(InlineKeyboardButton("⬅️ Previous", callback_data=f"page_{page - 1}"))
@@ -105,16 +108,19 @@ async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(about_text)
 
 async def songs(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    reply_markup, total = get_songs_keyboard(page=0)
-    if total == 0:
-        await update.message.reply_text("❌ ምንም የተመዘገበ መዝሙር አልተገኘም።")
-        return
+    try:
+        reply_markup, total = get_songs_keyboard(page=0)
+        if total == 0:
+            await update.message.reply_text("❌ ምንም የተመዘገበ መዝሙር አልተገኘም።")
+            return
 
-    await update.message.reply_text(
-        f"📜 **የመዝሙሮች ዝርዝር (ጠቅላላ፡ {total})፡**\n"
-        "ለመስማት የሚፈልጉትን መዝሙር ይጫኑ፦",
-        reply_markup=reply_markup
-    )
+        await update.message.reply_text(
+            f"📜 **የመዝሙሮች ዝርዝር (ጠቅላላ፡ {total})፡**\n"
+            "ለመስማት የሚፈልጉትን መዝሙር ይጫኑ፦",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ የዳታቤዝ ስህተት፡ {str(e)}")
 
 async def handle_button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -145,20 +151,27 @@ async def my_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def add_song_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        text = update.message.text.replace("/add", "").strip()
-        parts = text.split("|")
-        title = parts[0].strip()
-        lyrics = parts[1].strip() if len(parts) > 1 else ""
-        audio_id = parts[2].strip() if len(parts) > 2 else ""
-
-        if not title:
-            await update.message.reply_text("❌ እባክህ ቢያንስ የመዝሙሩን ርዕስ አስገባ!")
+        raw_text = update.message.text[4:].strip()  # /add የሚለውን ከፊት ያስወግዳል
+        if not raw_text or "|" not in raw_text:
+            await update.message.reply_text(
+                "❌ **ትክክለኛ አጠቃቀም፦**\n`/add የመዝሙር ርዕስ | የመዝሙሩ ግጥም`",
+                parse_mode="Markdown"
+            )
             return
 
-        save_song_to_db(title, lyrics, audio_id)
-        await update.message.reply_text(f"✅ መዝሙር '{title}' በስኬት ተጨምሯል!")
-    except Exception:
-        await update.message.reply_text("❌ ስህተት ተፈጥሯል! ፎርማቱን አስተካክለው።")
+        parts = raw_text.split("|", 1)
+        title = parts[0].strip()
+        lyrics = parts[1].strip()
+
+        if not title:
+            await update.message.reply_text("❌ እባክህ የመዝሙሩን ርዕስ አስገባ!")
+            return
+
+        save_song_to_db(title, lyrics)
+        await update.message.reply_text(f"✅ መዝሙር **'{title}'** በስኬት ተጨምሯል!", parse_mode="Markdown")
+
+    except Exception as err:
+        await update.message.reply_text(f"❌ ስህተት ተፈጥሯል፡ {str(err)}")
 
 # -------------------------------------------------------------
 # 5. Message Handling & Fast Search
@@ -169,10 +182,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text.lower() in ["songs", "🎵 songs"]:
         await songs(update, context)
         return
-    elif text == "ℹ️ About":
+    elif text.lower() in ["about", "ℹ️ about"]:
         await about(update, context)
         return
-    elif text == "❓ Help":
+    elif text.lower() in ["help", "❓ help"]:
         await help(update, context)
         return
 
