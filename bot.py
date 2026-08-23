@@ -1,4 +1,5 @@
 import os
+import certifi
 from threading import Thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
@@ -29,14 +30,15 @@ def run_health_check_server():
 Thread(target=run_health_check_server, daemon=True).start()
 
 # -------------------------------------------------------------
-# 2. Database Connection & Settings
+# 2. Database Connection & Settings (with SSL Fix)
 # -------------------------------------------------------------
 MONGO_URI = os.environ.get(
     "MONGO_URI",
     "mongodb+srv://end1r1as8_db_user:e9pGuwJHXfAGlpz0@cluster0.i4n9gvo.mongodb.net/?appName=Cluster0"
 )
 
-client = MongoClient(MONGO_URI)
+# certifi.where() በመጠቀም የ SSL Certificate ስህተትን ይቀርፋል
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["bama_music_db"]
 songs_collection = db["songs"]
 
@@ -151,7 +153,7 @@ async def my_invites(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def add_song_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        raw_text = update.message.text[4:].strip()  # /add የሚለውን ከፊት ያስወግዳል
+        raw_text = update.message.text[4:].strip()
         if not raw_text or "|" not in raw_text:
             await update.message.reply_text(
                 "❌ **ትክክለኛ አጠቃቀም፦**\n`/add የመዝሙር ርዕስ | የመዝሙሩ ግጥም`",
@@ -190,22 +192,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # በፍጥነት መዝሙር በስም መፈለጊያ (Search)
-    results = list(songs_collection.find({"title_lower": {"$regex": text.lower()}}).limit(10))
+    try:
+        results = list(songs_collection.find({"title_lower": {"$regex": text.lower()}}).limit(10))
 
-    if results:
-        if len(results) == 1:
-            song = results[0]
-            await update.message.reply_text(f"📖 **{song['title']}**\n\n{song.get('lyrics', '')}")
-            if song.get("audio"):
-                await update.message.reply_audio(audio=song["audio"], caption=song["title"])
+        if results:
+            if len(results) == 1:
+                song = results[0]
+                await update.message.reply_text(f"📖 **{song['title']}**\n\n{song.get('lyrics', '')}")
+                if song.get("audio"):
+                    await update.message.reply_audio(audio=song["audio"], caption=song["title"])
+            else:
+                keyboard = []
+                for song in results:
+                    keyboard.append([InlineKeyboardButton(f"🎵 {song['title']}", callback_data=f"song_{str(song['_id'])}")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text("🔎 **የተገኙ መዝሙሮች፦**", reply_markup=reply_markup)
         else:
-            keyboard = []
-            for song in results:
-                keyboard.append([InlineKeyboardButton(f"🎵 {song['title']}", callback_data=f"song_{str(song['_id'])}")])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text("🔎 **የተገኙ መዝሙሮች፦**", reply_markup=reply_markup)
-    else:
-        await update.message.reply_text("❌ የቀረበው መዝሙር አልተገኘም። እባክዎ 'Songs' የሚለውን በመጫን ይምረጡ።")
+            await update.message.reply_text("❌ የቀረበው መዝሙር አልተገኘም። እባክዎ 'Songs' የሚለውን በመጫን ይምረጡ።")
+    except Exception as e:
+        await update.message.reply_text(f"❌ የመፈለግ ስህተት፡ {str(e)}")
 
 async def handle_forwarded_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message and update.message.audio:
